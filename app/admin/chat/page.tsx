@@ -1,23 +1,36 @@
 "use client";
 // @ts-nocheck
 import { useEffect, useState } from "react";
-import { ref, onValue, push, set } from "firebase/database";
+import { ref, onValue, push, set, get } from "firebase/database";
 import { db } from "@/lib/firebase";
 
 export default function AdminChat() {
   const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState("");
-
-  // --- Identify which user chat to load ---
-  const userId =
-    typeof window !== "undefined"
-      ? localStorage.getItem("userId") || "guest"
-      : "guest";
-  const chatId = `chat_${userId}`;
+  const [selectedUser, setSelectedUser] = useState("patval12");
+  const [chatId, setChatId] = useState("");
   const admin = "ATF Concierge";
+
+  // --- Load latest chat session for selected user ---
+  useEffect(() => {
+    const fetchLatestChat = async () => {
+      const chatsRef = ref(db, "chats");
+      const snapshot = await get(chatsRef);
+      if (snapshot.exists()) {
+        const allChats = Object.keys(snapshot.val());
+        const userChats = allChats.filter((id) =>
+          id.startsWith(`chat_${selectedUser}_`)
+        );
+        const latest = userChats.sort().pop();
+        setChatId(latest || "");
+      }
+    };
+    fetchLatestChat();
+  }, [selectedUser]);
 
   // --- Listen to messages for that chat ---
   useEffect(() => {
+    if (!chatId) return;
     const chatRef = ref(db, `chats/${chatId}/messages`);
     return onValue(chatRef, (snapshot) => {
       const data = snapshot.val() || {};
@@ -28,7 +41,7 @@ export default function AdminChat() {
 
   // --- Send message as admin ---
   const sendMessage = async () => {
-    if (!newMessage.trim()) return;
+    if (!newMessage.trim() || !chatId) return;
     const chatRef = ref(db, `chats/${chatId}/messages`);
     const newMsgRef = push(chatRef);
     await set(newMsgRef, {
@@ -43,6 +56,16 @@ export default function AdminChat() {
     <div style={styles.container}>
       <div style={styles.header}>🛩️ Admin — ATF Concierge Chat</div>
 
+      <select
+        value={selectedUser}
+        onChange={(e) => setSelectedUser(e.target.value)}
+        style={styles.dropdown}
+      >
+        <option value="patval12">Patrick Van Jewell</option>
+        <option value="john77">John Smith</option>
+        <option value="victoria88">Victoria Lane</option>
+      </select>
+
       <div style={styles.messages}>
         {messages.map((msg, i) => (
           <div
@@ -50,8 +73,7 @@ export default function AdminChat() {
             style={{
               ...styles.message,
               alignSelf: msg.sender === admin ? "flex-end" : "flex-start",
-              backgroundColor:
-                msg.sender === admin ? "#d4af37" : "#111",
+              backgroundColor: msg.sender === admin ? "#d4af37" : "#111",
               color: msg.sender === admin ? "#000" : "#fff",
             }}
           >
@@ -91,6 +113,15 @@ const styles: any = {
     marginBottom: "10px",
     borderBottom: "1px solid #d4af37",
     paddingBottom: "10px",
+  },
+  dropdown: {
+    marginBottom: "10px",
+    padding: "6px",
+    background: "#111",
+    color: "#fff",
+    border: "1px solid #333",
+    borderRadius: "6px",
+    width: "200px",
   },
   messages: {
     flex: 1,
