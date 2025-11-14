@@ -9,7 +9,6 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [booking, setBooking] = useState<any>(null);
-
   const userId =
     typeof window !== "undefined"
       ? localStorage.getItem("userId") || "patval12"
@@ -19,32 +18,16 @@ export default function ChatPage() {
       ? localStorage.getItem("userName") || mockUser.profile.fullName
       : mockUser.profile.fullName;
 
-  // --- Create a new chat session each login ---
-  let sessionId =
-    typeof window !== "undefined" ? localStorage.getItem("chatSessionId") : null;
-
+  // === Create a new chat session once per login ===
   useEffect(() => {
-    const createNewSession = async () => {
-      if (typeof window === "undefined") return;
+    if (typeof window === "undefined") return;
 
-      // remove any old chats for this user (cleanup)
-      const oldChatsRef = ref(db, "chats");
-      const snapshot = await get(oldChatsRef);
-      if (snapshot.exists()) {
-        Object.keys(snapshot.val()).forEach((key) => {
-          if (key.startsWith(`chat_${userId}_`)) {
-            remove(ref(db, `chats/${key}`));
-          }
-        });
-      }
-
-      // create new chat ID
+    const existingId = localStorage.getItem("chatSessionId");
+    if (!existingId) {
       const newId = `chat_${userId}_${Date.now()}`;
       localStorage.setItem("chatSessionId", newId);
-      window.location.reload(); // refresh to load new chat
-    };
-
-    if (!sessionId) createNewSession();
+      setMessages([]); // clean start
+    }
   }, []);
 
   const chatId =
@@ -52,7 +35,7 @@ export default function ChatPage() {
       ? localStorage.getItem("chatSessionId")
       : null;
 
-  // --- Load booking data ---
+  // === Load booking mock data ===
   useEffect(() => {
     const activeId = localStorage.getItem("activeBooking");
     if (activeId) {
@@ -61,7 +44,7 @@ export default function ChatPage() {
     }
   }, []);
 
-  // --- Listen to messages ---
+  // === Listen to messages in realtime ===
   useEffect(() => {
     if (!chatId) return;
     const chatRef = ref(db, `chats/${chatId}/messages`);
@@ -72,17 +55,22 @@ export default function ChatPage() {
     });
   }, [chatId]);
 
-  // --- Send message ---
-  const sendMessage = async () => {
+  // === Send message ===
+  const sendMessage = async (e?: any) => {
+    if (e) e.preventDefault();
     if (!newMessage.trim() || !chatId) return;
-    const chatRef = ref(db, `chats/${chatId}/messages`);
-    const newMsgRef = push(chatRef);
-    await set(newMsgRef, {
-      sender: userName,
-      text: newMessage,
-      timestamp: Date.now(),
-    });
-    setNewMessage("");
+    try {
+      const chatRef = ref(db, `chats/${chatId}/messages`);
+      const newMsgRef = push(chatRef);
+      await set(newMsgRef, {
+        sender: userName,
+        text: newMessage.trim(),
+        timestamp: Date.now(),
+      });
+      setNewMessage("");
+    } catch (err) {
+      console.error("Send error:", err);
+    }
   };
 
   return (
@@ -117,22 +105,22 @@ export default function ChatPage() {
               color: msg.sender === userName ? "#000" : "#fff",
             }}
           >
-            <strong>{msg.sender}:</strong> {msg.text}
+            <strong>{msg.sender}:</strong> {msg.text || ""}
           </div>
         ))}
       </div>
 
-      <div style={styles.inputArea}>
+      <form onSubmit={sendMessage} style={styles.inputArea}>
         <input
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value)}
           placeholder="Type your message..."
           style={styles.input}
         />
-        <button onClick={sendMessage} style={styles.button}>
+        <button type="submit" style={styles.button}>
           Send
         </button>
-      </div>
+      </form>
     </div>
   );
 }

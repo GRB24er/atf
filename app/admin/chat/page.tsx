@@ -11,7 +11,7 @@ export default function AdminChat() {
   const [chatId, setChatId] = useState("");
   const admin = "ATF Concierge";
 
-  // --- Load latest chat session for selected user ---
+  // === Load latest chat session for selected user ===
   useEffect(() => {
     const fetchLatestChat = async () => {
       const chatsRef = ref(db, "chats");
@@ -28,7 +28,7 @@ export default function AdminChat() {
     fetchLatestChat();
   }, [selectedUser]);
 
-  // --- Listen to messages for that chat ---
+  // === Listen to messages for that chat ===
   useEffect(() => {
     if (!chatId) return;
     const chatRef = ref(db, `chats/${chatId}/messages`);
@@ -39,17 +39,22 @@ export default function AdminChat() {
     });
   }, [chatId]);
 
-  // --- Send message as admin ---
-  const sendMessage = async () => {
+  // === Send message as admin ===
+  const sendMessage = async (e?: any) => {
+    if (e) e.preventDefault();
     if (!newMessage.trim() || !chatId) return;
-    const chatRef = ref(db, `chats/${chatId}/messages`);
-    const newMsgRef = push(chatRef);
-    await set(newMsgRef, {
-      sender: admin,
-      text: newMessage,
-      timestamp: Date.now(),
-    });
-    setNewMessage("");
+    try {
+      const chatRef = ref(db, `chats/${chatId}/messages`);
+      const newMsgRef = push(chatRef);
+      await set(newMsgRef, {
+        sender: admin,
+        text: newMessage.trim(),
+        timestamp: Date.now(),
+      });
+      setNewMessage("");
+    } catch (err) {
+      console.error("Send error:", err);
+    }
   };
 
   return (
@@ -77,22 +82,22 @@ export default function AdminChat() {
               color: msg.sender === admin ? "#000" : "#fff",
             }}
           >
-            <strong>{msg.sender}:</strong> {msg.text}
+            <strong>{msg.sender}:</strong> {msg.text || ""}
           </div>
         ))}
       </div>
 
-      <div style={styles.inputArea}>
+      <form onSubmit={sendMessage} style={styles.inputArea}>
         <input
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value)}
           placeholder="Type your reply..."
           style={styles.input}
         />
-        <button onClick={sendMessage} style={styles.button}>
+        <button type="submit" style={styles.button}>
           Send
         </button>
-      </div>
+      </form>
     </div>
   );
 }
