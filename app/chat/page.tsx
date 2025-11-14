@@ -1,7 +1,7 @@
 "use client";
 // @ts-nocheck
 import { useEffect, useState } from "react";
-import { ref, onValue, push, set } from "firebase/database";
+import { ref, onValue, push, set, remove } from "firebase/database";
 import { db } from "@/lib/firebase";
 import mockUser from "@/lib/mockUser";
 
@@ -20,8 +20,8 @@ export default function ChatPage() {
       ? localStorage.getItem("userName") || mockUser.profile.fullName
       : mockUser.profile.fullName;
 
-  // --- Create unique chatId for each user ---
-  const chatId = `chat_${userId}`;
+  // --- Create unique chatId for each user + session ---
+  const chatId = `chat_${userId}_${Date.now()}`;
 
   // --- Load active booking ---
   useEffect(() => {
@@ -32,8 +32,20 @@ export default function ChatPage() {
     }
   }, []);
 
-  // --- Listen to messages ---
+  // --- Clear old chat and create fresh session ---
   useEffect(() => {
+    const oldChatId = localStorage.getItem("currentChatId");
+    
+    // Clear old chat from Firebase
+    if (oldChatId) {
+      const oldChatRef = ref(db, `chats/${oldChatId}`);
+      remove(oldChatRef);
+    }
+    
+    // Store new chatId
+    localStorage.setItem("currentChatId", chatId);
+
+    // Listen to new messages
     const chatRef = ref(db, `chats/${chatId}/messages`);
     return onValue(chatRef, (snapshot) => {
       const data = snapshot.val() || {};
@@ -101,6 +113,7 @@ export default function ChatPage() {
           onChange={(e) => setNewMessage(e.target.value)}
           placeholder="Type your message..."
           style={styles.input}
+          onKeyPress={(e) => e.key === "Enter" && sendMessage()}
         />
         <button onClick={sendMessage} style={styles.button}>
           Send

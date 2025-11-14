@@ -8,16 +8,20 @@ export default function AdminChat() {
   const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState("");
 
-  // --- Identify which user chat to load ---
-  const userId =
-    typeof window !== "undefined"
-      ? localStorage.getItem("userId") || "guest"
-      : "guest";
-  const chatId = `chat_${userId}`;
+  // --- Get the current active chatId from localStorage ---
+  const [chatId, setChatId] = useState("");
+
+  useEffect(() => {
+    // Admin reads the currentChatId that the user is using
+    const activeChatId = localStorage.getItem("currentChatId") || "chat_guest";
+    setChatId(activeChatId);
+  }, []);
+
   const admin = "ATF Concierge";
 
   // --- Listen to messages for that chat ---
   useEffect(() => {
+    if (!chatId) return;
     const chatRef = ref(db, `chats/${chatId}/messages`);
     return onValue(chatRef, (snapshot) => {
       const data = snapshot.val() || {};
@@ -28,7 +32,7 @@ export default function AdminChat() {
 
   // --- Send message as admin ---
   const sendMessage = async () => {
-    if (!newMessage.trim()) return;
+    if (!newMessage.trim() || !chatId) return;
     const chatRef = ref(db, `chats/${chatId}/messages`);
     const newMsgRef = push(chatRef);
     await set(newMsgRef, {
@@ -44,14 +48,18 @@ export default function AdminChat() {
       <div style={styles.header}>🛩️ Admin — ATF Concierge Chat</div>
 
       <div style={styles.messages}>
+        {messages.length === 0 && (
+          <p style={{ color: "#888", textAlign: "center" }}>
+            No active chat session
+          </p>
+        )}
         {messages.map((msg, i) => (
           <div
             key={i}
             style={{
               ...styles.message,
               alignSelf: msg.sender === admin ? "flex-end" : "flex-start",
-              backgroundColor:
-                msg.sender === admin ? "#d4af37" : "#111",
+              backgroundColor: msg.sender === admin ? "#d4af37" : "#111",
               color: msg.sender === admin ? "#000" : "#fff",
             }}
           >
@@ -66,6 +74,7 @@ export default function AdminChat() {
           onChange={(e) => setNewMessage(e.target.value)}
           placeholder="Type your reply..."
           style={styles.input}
+          onKeyPress={(e) => e.key === "Enter" && sendMessage()}
         />
         <button onClick={sendMessage} style={styles.button}>
           Send
