@@ -9,6 +9,7 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [booking, setBooking] = useState<any>(null);
+  const [chatId, setChatId] = useState("");
 
   // --- Identify the logged-in user ---
   const userId =
@@ -20,8 +21,19 @@ export default function ChatPage() {
       ? localStorage.getItem("userName") || mockUser.profile.fullName
       : mockUser.profile.fullName;
 
-  // --- Create unique chatId for each user + session ---
-  const chatId = `chat_${userId}_${Date.now()}`;
+  // --- Initialize chat session ONCE ---
+  useEffect(() => {
+    // Check if there's an existing chat session
+    let currentChatId = localStorage.getItem("currentChatId");
+    
+    // If no session exists, create a fresh one
+    if (!currentChatId) {
+      currentChatId = `chat_${userId}_${Date.now()}`;
+      localStorage.setItem("currentChatId", currentChatId);
+    }
+    
+    setChatId(currentChatId);
+  }, [userId]);
 
   // --- Load active booking ---
   useEffect(() => {
@@ -32,20 +44,10 @@ export default function ChatPage() {
     }
   }, []);
 
-  // --- Clear old chat and create fresh session ---
+  // --- Listen to messages ---
   useEffect(() => {
-    const oldChatId = localStorage.getItem("currentChatId");
+    if (!chatId) return;
     
-    // Clear old chat from Firebase
-    if (oldChatId) {
-      const oldChatRef = ref(db, `chats/${oldChatId}`);
-      remove(oldChatRef);
-    }
-    
-    // Store new chatId
-    localStorage.setItem("currentChatId", chatId);
-
-    // Listen to new messages
     const chatRef = ref(db, `chats/${chatId}/messages`);
     return onValue(chatRef, (snapshot) => {
       const data = snapshot.val() || {};
@@ -56,7 +58,7 @@ export default function ChatPage() {
 
   // --- Send message ---
   const sendMessage = async () => {
-    if (!newMessage.trim()) return;
+    if (!newMessage.trim() || !chatId) return;
     const chatRef = ref(db, `chats/${chatId}/messages`);
     const newMsgRef = push(chatRef);
     await set(newMsgRef, {
@@ -65,6 +67,17 @@ export default function ChatPage() {
       timestamp: Date.now(),
     });
     setNewMessage("");
+  };
+
+  // --- Clear chat and start fresh (call this when user logs out or wants new session) ---
+  const startFreshChat = () => {
+    const oldChatId = localStorage.getItem("currentChatId");
+    if (oldChatId) {
+      const oldChatRef = ref(db, `chats/${oldChatId}`);
+      remove(oldChatRef);
+    }
+    localStorage.removeItem("currentChatId");
+    window.location.reload();
   };
 
   return (

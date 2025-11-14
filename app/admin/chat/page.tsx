@@ -7,17 +7,17 @@ import { db } from "@/lib/firebase";
 export default function AdminChat() {
   const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState("");
-
-  // --- Get the current active chatId from localStorage ---
   const [chatId, setChatId] = useState("");
 
-  useEffect(() => {
-    // Admin reads the currentChatId that the user is using
-    const activeChatId = localStorage.getItem("currentChatId") || "chat_guest";
-    setChatId(activeChatId);
-  }, []);
-
   const admin = "ATF Concierge";
+
+  // --- Get the current active chatId from localStorage ONCE ---
+  useEffect(() => {
+    const activeChatId = localStorage.getItem("currentChatId");
+    if (activeChatId) {
+      setChatId(activeChatId);
+    }
+  }, []);
 
   // --- Listen to messages for that chat ---
   useEffect(() => {
@@ -45,12 +45,14 @@ export default function AdminChat() {
 
   return (
     <div style={styles.container}>
-      <div style={styles.header}>🛩️ Admin — ATF Concierge Chat</div>
+      <div style={styles.header}>
+        🛩️ Admin — ATF Concierge Chat {chatId && `(${chatId})`}
+      </div>
 
       <div style={styles.messages}>
-        {messages.length === 0 && (
+        {!chatId && (
           <p style={{ color: "#888", textAlign: "center" }}>
-            No active chat session
+            Waiting for user to start chat...
           </p>
         )}
         {messages.map((msg, i) => (

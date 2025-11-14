@@ -44,9 +44,6 @@ export default function LoginPage() {
         <button type="submit" style={styles.button}>
           Sign in
         </button>
-        <div style={styles.demo}>
-          Demo credentials: <strong>{mockUser.username}</strong> / <strong>{mockUser.password}</strong>
-        </div>
       </form>
     </div>
   );
@@ -65,7 +62,6 @@ const styles: any = {
   title: { fontSize: "1.5rem", color: "#d4af37", marginBottom: "12px" },
   form: { width: "340px", display: "flex", flexDirection: "column", gap: "10px" },
   input: { padding: "10px", borderRadius: "8px", border: "1px solid #333", background: "#0f0f10", color: "#fff" },
-  button: { background: "#d4af37", color: "#000", padding: "10px", borderRadius: "8px", border: "none", fontWeight: "700" },
-  demo: { marginTop: "8px", fontSize: "0.85rem", color: "#bdbdbd" },
+  button: { background: "#d4af37", color: "#000", padding: "10px", borderRadius: "8px", border: "none", fontWeight: "700", cursor: "pointer" },
   error: { color: "#ff6b6b" }
 };
