@@ -1,7 +1,7 @@
 "use client";
 // @ts-nocheck
 import { useEffect, useState } from "react";
-import { ref, onValue, push, set, get, remove } from "firebase/database";
+import { ref, onValue, push, set } from "firebase/database";
 import { db } from "@/lib/firebase";
 import mockUser from "@/lib/mockUser";
 
@@ -9,33 +9,21 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [booking, setBooking] = useState<any>(null);
+
+  // --- Identify the logged-in user ---
   const userId =
     typeof window !== "undefined"
-      ? localStorage.getItem("userId") || "patval12"
-      : "patval12";
+      ? localStorage.getItem("userId") || "guest"
+      : "guest";
   const userName =
     typeof window !== "undefined"
       ? localStorage.getItem("userName") || mockUser.profile.fullName
       : mockUser.profile.fullName;
 
-  // === Create a new chat session once per login ===
-  useEffect(() => {
-    if (typeof window === "undefined") return;
+  // --- Create unique chatId for each user ---
+  const chatId = `chat_${userId}`;
 
-    const existingId = localStorage.getItem("chatSessionId");
-    if (!existingId) {
-      const newId = `chat_${userId}_${Date.now()}`;
-      localStorage.setItem("chatSessionId", newId);
-      setMessages([]); // clean start
-    }
-  }, []);
-
-  const chatId =
-    typeof window !== "undefined"
-      ? localStorage.getItem("chatSessionId")
-      : null;
-
-  // === Load booking mock data ===
+  // --- Load active booking ---
   useEffect(() => {
     const activeId = localStorage.getItem("activeBooking");
     if (activeId) {
@@ -44,9 +32,8 @@ export default function ChatPage() {
     }
   }, []);
 
-  // === Listen to messages in realtime ===
+  // --- Listen to messages ---
   useEffect(() => {
-    if (!chatId) return;
     const chatRef = ref(db, `chats/${chatId}/messages`);
     return onValue(chatRef, (snapshot) => {
       const data = snapshot.val() || {};
@@ -55,26 +42,22 @@ export default function ChatPage() {
     });
   }, [chatId]);
 
-  // === Send message ===
-  const sendMessage = async (e?: any) => {
-    if (e) e.preventDefault();
-    if (!newMessage.trim() || !chatId) return;
-    try {
-      const chatRef = ref(db, `chats/${chatId}/messages`);
-      const newMsgRef = push(chatRef);
-      await set(newMsgRef, {
-        sender: userName,
-        text: newMessage.trim(),
-        timestamp: Date.now(),
-      });
-      setNewMessage("");
-    } catch (err) {
-      console.error("Send error:", err);
-    }
+  // --- Send message ---
+  const sendMessage = async () => {
+    if (!newMessage.trim()) return;
+    const chatRef = ref(db, `chats/${chatId}/messages`);
+    const newMsgRef = push(chatRef);
+    await set(newMsgRef, {
+      sender: userName,
+      text: newMessage,
+      timestamp: Date.now(),
+    });
+    setNewMessage("");
   };
 
   return (
     <div style={styles.container}>
+      {/* ===== Header with Booking Info ===== */}
       {booking && (
         <div style={styles.headerCard}>
           <img src="/patrick.jpg" alt="Patrick" style={styles.avatar} />
@@ -93,6 +76,7 @@ export default function ChatPage() {
         </div>
       )}
 
+      {/* ===== Chat Messages ===== */}
       <div style={styles.messages}>
         {messages.map((msg, i) => (
           <div
@@ -101,26 +85,27 @@ export default function ChatPage() {
               ...styles.message,
               alignSelf: msg.sender === userName ? "flex-end" : "flex-start",
               backgroundColor:
-                msg.sender === userName ? "#d4af37" : "#222",
+                msg.sender === userName ? "#d4af37" : "#111",
               color: msg.sender === userName ? "#000" : "#fff",
             }}
           >
-            <strong>{msg.sender}:</strong> {msg.text || ""}
+            <strong>{msg.sender}:</strong> {msg.text}
           </div>
         ))}
       </div>
 
-      <form onSubmit={sendMessage} style={styles.inputArea}>
+      {/* ===== Message Input ===== */}
+      <div style={styles.inputArea}>
         <input
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value)}
           placeholder="Type your message..."
           style={styles.input}
         />
-        <button type="submit" style={styles.button}>
+        <button onClick={sendMessage} style={styles.button}>
           Send
         </button>
-      </form>
+      </div>
     </div>
   );
 }
